@@ -8,7 +8,11 @@ const cron = require('node-cron');
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+}));
+
 
 // MongoDB connection
 mongoose.connect('mongodb+srv://parveshtest:Parvesh%40123987@cluster0.qgfonjs.mongodb.net/whatsappBackendTest?retryWrites=true&w=majority', {
