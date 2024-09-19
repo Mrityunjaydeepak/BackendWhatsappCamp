@@ -103,7 +103,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://whatsapp.copartner.in/api/',
+        url: 'https://whatsapp.copartner.in/',
       },
     ],
   },
