@@ -103,7 +103,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:5001',
+        url: 'https://whatsapp.copartner.in/api-docs/',
       },
     ],
   },
