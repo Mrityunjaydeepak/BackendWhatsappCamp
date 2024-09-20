@@ -9,7 +9,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cors({
-  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/'],
+  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000'],
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
 
