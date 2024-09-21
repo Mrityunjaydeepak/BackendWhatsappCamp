@@ -10,9 +10,13 @@ const app = express();
 dotenv.config();
 app.use(express.json());
 app.use(cors({
-  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000/'],
+  origin: ['http://localhost:3000', 'https://whatsapp.copartner.in'],
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'], // Ensure this covers the headers you use
+  credentials: true
 }));
+
+app.options('*', cors()); // Handle OPTIONS request for CORS
 
 
 // MongoDB connection
