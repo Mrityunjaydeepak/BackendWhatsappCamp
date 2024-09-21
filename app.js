@@ -21,9 +21,11 @@ mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true,
 }).then(() => {
   console.log('Connected to MongoDB');
+  
 }).catch((error) => {
   console.error('Error connecting to MongoDB:', error);
 });
+
 
 const formatDate = (date) => {
   const day = String(date.getDate()).padStart(2, '0');
