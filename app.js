@@ -9,7 +9,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cors({
-  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000'],
+  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000/', 'http://localhost:5001/api-docs/'],
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
 
@@ -521,11 +521,48 @@ app.delete('/api/templates/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: The requested template data.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 name:
+ *                   type: string
+ *                 apiUrl:
+ *                   type: string
+ *                 apiKey:
+ *                   type: string
+ *                 campaignName:
+ *                   type: string
+ *                 userName:
+ *                   type: string
+ *                 templateParams:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 media:
+ *                   type: object
+ *                   properties:
+ *                     url:
+ *                       type: string
+ *                     filename:
+ *                       type: string
  *       404:
  *         description: Template not found.
  *       500:
  *         description: Error occurred while fetching the template.
  */
+app.get('/api/templates/:id', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    res.status(200).json(template);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching template', details: error.message });
+  }
+});
 
 
 
