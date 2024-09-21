@@ -1,12 +1,13 @@
 const express = require('express');
 const axios = require('axios');
+const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
 const cors = require('cors');
 const cron = require('node-cron');
 const app = express();
-
+dotenv.config();
 app.use(express.json());
 app.use(cors({
   origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000/', 'http://localhost:5001/api-docs/'],
@@ -15,7 +16,7 @@ app.use(cors({
 
 
 // MongoDB connection
-mongoose.connect('mongodb+srv://parveshtest:Parvesh%40123987@cluster0.qgfonjs.mongodb.net/whatsappBackendTest?retryWrites=true&w=majority', {
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
