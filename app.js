@@ -10,7 +10,7 @@ const app = express();
 dotenv.config();
 app.use(express.json());
 app.use(cors({
-  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000/', 'http://localhost:5001/api-docs/'],
+  origin: ['https://whatsapp.copartner.in/api-docs/', 'http://whatsapp.copartner.in/api-docs/','http://localhost:3000/'],
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
 
