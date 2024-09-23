@@ -40,6 +40,17 @@ const userSchema = new mongoose.Schema({
   mobileNumber: String,
 });
 const User = mongoose.model('User', userSchema);
+const formatDate = (date) => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based in JavaScript
+  const year = date.getFullYear();
+  
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+};
 
 // MongoDB Group Schema and Model
 const groupSchema = new mongoose.Schema({
@@ -52,7 +63,10 @@ const groupSchema = new mongoose.Schema({
       mobileNumber: { type: String, required: true },
     }
   ],
-  dateCreatedOn: { type: Date, default: Date.now },
+  dateCreatedOn: {
+    type: String, // Store the date and time as a string
+    default: () => formatDate(new Date()), // Format the date and time as DD/MM/YYYY HH:mm:ss
+  },
 });
 
 const Group = mongoose.model('Group', groupSchema);
@@ -60,7 +74,7 @@ const Group = mongoose.model('Group', groupSchema);
 // MongoDB Schedule Schema and Model
 const scheduleSchema = new mongoose.Schema({
   groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
-  templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
+  templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'TemplateId', required: true },
   scheduledTime: { type: Date, required: true },
   status: { type: String, default: 'pending' },
   dateCreatedOn: {
