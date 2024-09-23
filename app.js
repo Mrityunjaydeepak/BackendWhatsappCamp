@@ -55,7 +55,7 @@ const formatDate = (date) => {
 // MongoDB Group Schema and Model
 const groupSchema = new mongoose.Schema({
   groupName: { type: String, required: true },
-  users:[
+  users: [
     {
       userId: { type: String, required: true },
       raName: { type: String, default: null },
