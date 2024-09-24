@@ -63,10 +63,7 @@ const groupSchema = new mongoose.Schema({
       mobileNumber: { type: String, required: true },
     }
   ],
-  dateCreatedOn: {
-    type: String, // Store the date and time as a string
-    default: () => formatDate(new Date()), // Format the date and time as DD/MM/YYYY HH:mm:ss
-  },
+  dateCreatedOn: { type: Date, default: Date.now },
 });
 
 const Group = mongoose.model('Group', groupSchema);
@@ -77,10 +74,7 @@ const scheduleSchema = new mongoose.Schema({
   templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'TemplateId', required: true },
   scheduledTime: { type: Date, required: true },
   status: { type: String, default: 'pending' },
-  dateCreatedOn: {
-    type: String, // Store the date as a string
-    default: () => formatDate(new Date()), // Format the date as DD/MM/YYYY before saving
-  },
+  dateCreatedOn:{ type: Date, default: Date.now },
 });
 
 const Schedule = mongoose.model('Schedule', scheduleSchema);
@@ -117,7 +111,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://whatsapp.copartner.in/',
+        // url: 'https://whatsapp.copartner.in/',
+        url:'http://localhost:5001/api-docs',
       },
     ],
   },
@@ -832,8 +827,10 @@ const sendMessageToGroup = async (group, templateId) => {
           filename: template.mediaFilename || "", // Ensure a valid filename is provided
         },
         paramsFallbackValue: {
-          FirstName: user.name || "user", // Dynamically use the user's name
-          Discount: 90, // Set discount dynamically or use fallback
+          FirstName: "Hailgro"|| "user",
+          RAname: user.raName || "",
+           // Dynamically use the user's name
+          Discount: 0, // Set discount dynamically or use fallback
           UserName: user.name || "User" // User's name fallback
         }
       };
