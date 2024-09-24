@@ -111,8 +111,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        // url: 'https://whatsapp.copartner.in/',
-        url:'http://localhost:5001/api-docs',
+        url: 'https://whatsapp.copartner.in/',
+        // url:'http://localhost:5001/api-docs',
       },
     ],
   },
@@ -590,7 +590,7 @@ app.get('/api/templates/:id', async (req, res) => {
  *               groupId:
  *                 type: string
  *                 required: true
- *               template:
+ *               templateId:
  *                 type: string
  *                 required: true
  *               scheduledTime:
