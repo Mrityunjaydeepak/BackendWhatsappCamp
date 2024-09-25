@@ -1020,11 +1020,29 @@ const sendMessageToGroup = async (group, templateId) => {
 
   // Function to dynamically replace template parameters
   const replaceTemplateParams = (templateParams, user) => {
+    // Build a mapping of placeholders to their corresponding values
+    const placeholderValues = {
+      '$UserName': user.name || 'User',
+      '$FirstName': 'Hailgro',
+      '$RaName': user.raName || '',
+      // Add additional placeholders and their values here
+    };
+
     return templateParams.map((param) => {
-      if (param === '$UserName') return user.name || 'User'; // Replace with user name or default to 'User'
-      if (param === '$FirstName') return "Hailgro" || 'Hailgro'; // Assuming FirstName is also the user's name
-      if (param === '$RaName') return user.raName || ''; // Hardcoded discount, you may want to fetch this dynamically
-      return param; // Return param as is if no match is found
+      // Replace placeholders in the param string
+      let replacedParam = param.replace(/\$[A-Za-z0-9_]+/g, (match) => {
+        if (placeholderValues.hasOwnProperty(match)) {
+          return placeholderValues[match];
+        }
+        return match;
+      });
+
+      // Remove any parameter labels like 'Param1:' or 'Param2:'
+      // Assuming labels are prefixed like 'Param1:' in the string
+      // Adjust the regex if labels are formatted differently
+      replacedParam = replacedParam.replace(/Param\d+:\s*/g, '');
+
+      return replacedParam;
     });
   };
 
@@ -1041,17 +1059,17 @@ const sendMessageToGroup = async (group, templateId) => {
         campaignName: template.campaignName, // Use the correct campaign name
         destination: user.mobileNumber,
         userName: template.userName,
-        templateParams: templateParamsReplaced, // Replaced dynamic params
+        // Send templateParams as an array of values without labels
+        templateParams: templateParamsReplaced,
         source: template.source || 'new-landing-page form',
         media: {
           url: template.mediaUrl || '', // Ensure a valid media URL is provided if required
           filename: template.mediaFilename || '', // Ensure a valid filename is provided
         },
         paramsFallbackValue: {
-         
           RAname: user.raName || '',
-          // Set discount dynamically or use fallback
           UserName: user.name || 'User', // User's name fallback
+          // Include other fallback values if necessary
         },
       };
     });
@@ -1084,6 +1102,8 @@ const sendMessageToGroup = async (group, templateId) => {
     }
   }
 };
+
+
 
 // Cron job to check for scheduled messages and send them
 cron.schedule('* * * * *', async () => {
