@@ -1,3 +1,5 @@
+// app.js
+
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
@@ -6,112 +8,210 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
 const cors = require('cors');
 const cron = require('node-cron');
-const app = express();
-dotenv.config();
-app.use(express.json());
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://whatsapp.copartner.in'],
-  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'], // Ensure this covers the headers you use
-  credentials: true
-}));
 
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+app.use(
+  cors({
+    origin: ['http://localhost:3000', 'https://whatsapp.copartner.in'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 app.options('*', cors()); // Handle OPTIONS request for CORS
 
-
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-  
-}).catch((error) => {
-  console.error('Error connecting to MongoDB:', error);
-});
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error);
+  });
 
+// MongoDB Schemas and Models
 
-
-
-// MongoDB User Schema and Model
+// User Schema
 const userSchema = new mongoose.Schema({
   _id: String,
   name: { type: String, default: null },
   mobileNumber: String,
 });
 const User = mongoose.model('User', userSchema);
-const formatDate = (date) => {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based in JavaScript
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
-// MongoDB Group Schema and Model
+// Group Schema
 const groupSchema = new mongoose.Schema({
   groupName: { type: String, required: true },
-  users:[
+  users: [
     {
       userId: { type: String, required: true },
-      raName:{type:String,default:null},
+      raName: { type: String, default: null },
       name: { type: String, default: null },
       mobileNumber: { type: String, required: true },
-    }
+    },
   ],
-
   dateCreatedOn: { type: Date, default: Date.now },
-
-
 });
 const Group = mongoose.model('Group', groupSchema);
 
-// MongoDB Schedule Schema and Model
-const scheduleSchema = new mongoose.Schema({
-  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
-  templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'TemplateId', required: true },
-  scheduledTime: { type: Date, required: true },
-  status: { type: String, default: 'pending' },
-  dateCreatedOn:{ type: Date, default: Date.now },
-});
-
-const Schedule = mongoose.model('Schedule', scheduleSchema);
-
-
-
+// Template Schema
 const templateSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  apiUrl: { type: String, required: true, default: 'https://backend.aisensy.com/campaign/t1/api/v2' },
+  apiUrl: {
+    type: String,
+    required: true,
+    default: 'https://backend.aisensy.com/campaign/t1/api/v2',
+  },
   apiKey: { type: String, required: true },
   campaignName: { type: String, required: true },
   userName: { type: String, required: true },
   source: { type: String },
-  mediaUrl: { type: String }, // Ensure mediaUrl is included
+  mediaUrl: { type: String },
   mediaFilename: { type: String },
-  templateParams: [{ type: String }], // Optional
-  tags: [{ type: String }], // Optional
-  attributes: { type: Map, of: String }, // Optional attributes
+  templateParams: [{ type: String }],
+  tags: [{ type: String }],
+  attributes: { type: Map, of: String },
   dateCreated: { type: Date, default: Date.now },
 });
-
 const Template = mongoose.model('Template', templateSchema);
 
+// Schedule Schema
+const scheduleSchema = new mongoose.Schema({
+  templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
+  scheduledTime: { type: Date, required: true },
+  status: { type: String, default: 'pending' },
+  dateCreatedOn: { type: Date, default: Date.now },
+});
+scheduleSchema.index({ scheduledTime: 1 });
+scheduleSchema.index({ status: 1 });
+const Schedule = mongoose.model('Schedule', scheduleSchema);
 
+// Schedule Group Schema
+const scheduleGroupSchema = new mongoose.Schema({
+  scheduleName: { type: String, required: true, unique: true },
+  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
+  schedules: [
+    {
+      scheduleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Schedule', required: true },
+      status: { type: String, default: 'pending' },
+    },
+  ],
+  status: { type: String, default: 'pending' }, // Overall status of the schedule group
+  dateCreatedOn: { type: Date, default: Date.now },
+});
+scheduleGroupSchema.index({ scheduleName: 1 }, { unique: true });
+const ScheduleGroup = mongoose.model('ScheduleGroup', scheduleGroupSchema);
 
 // Swagger options
 const swaggerOptions = {
   swaggerDefinition: {
     openapi: '3.0.0',
     info: {
-      title: 'Express API for Groups, Users, and Scheduling',
+      title: 'Express API for Groups, Users, Templates, and Scheduling',
       version: '1.0.0',
-      description: 'API to manage groups, users, and scheduling WhatsApp messages',
+      description: 'API to manage groups, users, templates, and scheduling WhatsApp messages',
     },
     servers: [
       {
         url: 'https://whatsapp.copartner.in/',
-        // url:'http://localhost:5001/api-docs',
       },
     ],
+    components: {
+      schemas: {
+        User: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            name: { type: 'string' },
+            mobileNumber: { type: 'string' },
+          },
+        },
+        Group: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            groupName: { type: 'string' },
+            users: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  userId: { type: 'string' },
+                  raName: { type: 'string' },
+                  name: { type: 'string' },
+                  mobileNumber: { type: 'string' },
+                },
+              },
+            },
+            dateCreatedOn: { type: 'string', format: 'date-time' },
+          },
+        },
+        Template: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            name: { type: 'string' },
+            apiUrl: { type: 'string' },
+            apiKey: { type: 'string' },
+            campaignName: { type: 'string' },
+            userName: { type: 'string' },
+            source: { type: 'string' },
+            mediaUrl: { type: 'string' },
+            mediaFilename: { type: 'string' },
+            templateParams: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            attributes: {
+              type: 'object',
+              additionalProperties: { type: 'string' },
+            },
+            dateCreated: { type: 'string', format: 'date-time' },
+          },
+        },
+        Schedule: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            templateId: { type: 'string' },
+            scheduledTime: { type: 'string', format: 'date-time' },
+            status: { type: 'string' },
+            dateCreatedOn: { type: 'string', format: 'date-time' },
+          },
+        },
+        ScheduleGroup: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            scheduleName: { type: 'string' },
+            groupId: { type: 'string' },
+            schedules: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  scheduleId: { type: 'string' },
+                  status: { type: 'string' },
+                },
+              },
+            },
+            status: { type: 'string' },
+            dateCreatedOn: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
   },
   apis: ['./app.js'],
 };
@@ -119,20 +219,28 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+// API Endpoints
+
+// Group Endpoints
 /**
  * @swagger
  * /api/groups:
  *   post:
  *     summary: Create a new group with users
+ *     tags:
+ *       - Groups
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - groupName
+ *               - users
  *             properties:
  *               groupName:
  *                 type: string
- *                 required: true
  *               users:
  *                 type: array
  *                 items:
@@ -140,13 +248,23 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *                   properties:
  *                     userId:
  *                       type: string
+ *                     raName:
+ *                       type: string
  *                     name:
  *                       type: string
  *                     mobileNumber:
  *                       type: string
  *     responses:
- *       201:
+ *       200:
  *         description: Group created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Group'
+ *       400:
+ *         description: Bad request.
+ *       500:
+ *         description: Server error.
  */
 app.post('/api/groups', async (req, res) => {
   const { groupName, users } = req.body;
@@ -174,9 +292,19 @@ app.post('/api/groups', async (req, res) => {
  * /api/groups:
  *   get:
  *     summary: Get all groups with their users
+ *     tags:
+ *       - Groups
  *     responses:
  *       200:
  *         description: A list of groups with users.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Group'
+ *       500:
+ *         description: Server error.
  */
 app.get('/api/groups', async (req, res) => {
   try {
@@ -186,8 +314,7 @@ app.get('/api/groups', async (req, res) => {
     console.error('Error fetching groups:', error);
     res.status(500).json({ error: 'An error occurred while fetching the groups.' });
   }
-});
-
+}); 
 /**
  * @swagger
  * /api/groups/{groupId}:
@@ -321,58 +448,29 @@ app.get('/api/groups/:groupId', async (req, res) => {
   }
 });
 
+// Other group endpoints (GET, PATCH, DELETE by ID) can be added similarly...
 
+// Template Endpoints
 /**
  * @swagger
  * /api/templates:
  *   post:
  *     summary: Create a new template
- *     description: Create a WhatsApp message template with details like API URL, campaign name, user info, and media.
+ *     tags:
+ *       - Templates
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - apiUrl
- *               - apiKey
- *               - campaignName
- *               - userName
- *             properties:
- *               name:
- *                 type: string
- *                 description: Name of the template.
- *               apiUrl:
- *                 type: string
- *                 description: API URL for sending the message.
- *               apiKey:
- *                 type: string
- *                 description: API key provided by AiSensy.
- *               campaignName:
- *                 type: string
- *                 description: Campaign name as created in AiSensy.
- *               userName:
- *                 type: string
- *                 description: Name of the user for the campaign.
- *               templateParams:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Dynamic template parameters.
- *               media:
- *                 type: object
- *                 properties:
- *                   url:
- *                     type: string
- *                     description: URL of the media to be sent.
- *                   filename:
- *                     type: string
- *                     description: Filename of the media.
+ *             $ref: '#/components/schemas/Template'
  *     responses:
- *       201:
- *         description: Template created successfully.
+ *       200:
+ *         description: Template saved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Template'
  *       500:
  *         description: Error occurred while creating the template.
  */
@@ -381,7 +479,7 @@ app.post('/api/templates', async (req, res) => {
     const templateData = req.body;
     const template = new Template(templateData);
     await template.save();
-    res.status(201).json({ message: 'Template saved successfully.', template });
+    res.status(200).json({ message: 'Template saved successfully.', template });
   } catch (error) {
     res.status(500).json({ error: 'Error saving template', details: error.message });
   }
@@ -392,7 +490,8 @@ app.post('/api/templates', async (req, res) => {
  * /api/templates:
  *   get:
  *     summary: Get all templates
- *     description: Retrieve all the stored WhatsApp message templates.
+ *     tags:
+ *       - Templates
  *     responses:
  *       200:
  *         description: A list of all message templates.
@@ -405,9 +504,6 @@ app.post('/api/templates', async (req, res) => {
  *       500:
  *         description: Error occurred while fetching the templates.
  */
-
-
-
 app.get('/api/templates', async (req, res) => {
   try {
     const templates = await Template.find();
@@ -569,158 +665,188 @@ app.get('/api/templates/:id', async (req, res) => {
     res.status(500).json({ error: 'Error fetching template', details: error.message });
   }
 });
+// Other template endpoints (GET, PATCH, DELETE by ID) can be added similarly...
 
-
-
+// Schedule Group Endpoints
 /**
  * @swagger
- * /api/schedule:
+ * /api/schedule-groups:
  *   post:
- *     summary: Schedule a WhatsApp message to a group
+ *     summary: Create a new schedule group with multiple schedules
+ *     tags:
+ *       - Schedule Groups
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - scheduleName
+ *               - groupId
+ *               - schedules
  *             properties:
- *             
+ *               scheduleName:
+ *                 type: string
  *               groupId:
  *                 type: string
- *                 required: true
- *               templateId:
- *                 type: string
- *                 required: true
- *               scheduledTime:
- *                 type: string
- *                 format: date-time
- *                 required: true
- *               status:
- *                  type: string
- *                 
+ *               schedules:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - templateId
+ *                     - scheduledTime
+ *                   properties:
+ *                     templateId:
+ *                       type: string
+ *                     scheduledTime:
+ *                       type: string
+ *                       format: date-time
  *     responses:
  *       200:
- *         description: Message scheduled successfully.
+ *         description: Schedule group created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ScheduleGroup'
+ *       400:
+ *         description: Bad request.
+ *       500:
+ *         description: Server error.
  */
-app.post('/api/schedule', async (req, res) => {
-  const { groupId, templateId, scheduledTime, status } = req.body;
+app.post('/api/schedule-groups', async (req, res) => {
+  const { scheduleName, groupId, schedules } = req.body;
 
-  if (!groupId || !templateId || !scheduledTime || !status) {
-    return res.status(400).json({ error: 'All fields are required.' });
+  if (!scheduleName || !groupId || !Array.isArray(schedules) || schedules.length === 0) {
+    return res.status(400).json({ error: 'scheduleName, groupId, and a list of schedules are required.' });
   }
 
   try {
-    const schedule = new Schedule({
+    // Check if scheduleName already exists
+    const existingGroup = await ScheduleGroup.findOne({ scheduleName });
+    if (existingGroup) {
+      return res.status(400).json({ error: 'Schedule name already exists. Please choose a different name.' });
+    }
+
+    // Create individual schedules
+    const createdSchedules = await Promise.all(
+      schedules.map(async (sched) => {
+        const { templateId, scheduledTime } = sched;
+        const schedule = new Schedule({ templateId, scheduledTime });
+        await schedule.save();
+        return { scheduleId: schedule._id, status: schedule.status };
+      })
+    );
+
+    // Create schedule group
+    const scheduleGroup = new ScheduleGroup({
+      scheduleName,
       groupId,
-      templateId,
-      scheduledTime,
-      status
+      schedules: createdSchedules,
     });
 
-    await schedule.save();
-    res.status(200).json({ message: 'Schedule created successfully.', schedule });
+    await scheduleGroup.save();
+
+    res.status(200).json({ message: 'Schedule group created successfully.', scheduleGroup });
   } catch (error) {
-    console.error('Error scheduling message:', error);
-    res.status(500).json({ error: 'An error occurred while scheduling the message.' });
+    console.error('Error creating schedule group:', error);
+    res.status(500).json({ error: 'An error occurred while creating the schedule group.' });
   }
 });
 
 /**
  * @swagger
- * /api/schedule/{scheduleId}:
+ * /api/schedule-groups:
  *   get:
- *     summary: Get a schedule by its ID
+ *     summary: Get all schedule groups with their schedules
+ *     tags:
+ *       - Schedule Groups
+ *     responses:
+ *       200:
+ *         description: A list of schedule groups with their schedules.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ScheduleGroup'
+ *       500:
+ *         description: Server error.
+ */
+app.get('/api/schedule-groups', async (req, res) => {
+  try {
+    const scheduleGroups = await ScheduleGroup.find()
+      .populate('groupId')
+      .populate({
+        path: 'schedules.scheduleId',
+        populate: { path: 'templateId' },
+      });
+
+    res.status(200).json(scheduleGroups);
+  } catch (error) {
+    console.error('Error fetching schedule groups:', error);
+    res.status(500).json({ error: 'An error occurred while fetching schedule groups.' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/schedule-groups/{groupId}:
+ *   get:
+ *     summary: Get a schedule group by its ID
+ *     tags:
+ *       - Schedule Groups
  *     parameters:
  *       - in: path
- *         name: scheduleId
+ *         name: groupId
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Schedule retrieved successfully.
+ *         description: Schedule group retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ScheduleGroup'
  *       404:
- *         description: Schedule not found.
+ *         description: Schedule group not found.
  *       500:
- *         description: An error occurred while retrieving the schedule.
+ *         description: Server error.
  */
-app.get('/api/schedule/:scheduleId', async (req, res) => {
-  const { scheduleId } = req.params;
+app.get('/api/schedule-groups/:groupId', async (req, res) => {
+  const { groupId } = req.params;
 
   try {
-    const schedule = await Schedule.findById(scheduleId).populate('groupId templateId');
-    if (!schedule) {
-      return res.status(404).json({ error: 'Schedule not found.' });
-    }
-    res.status(200).json(schedule);
-  } catch (error) {
-    console.error('Error fetching schedule:', error);
-    res.status(500).json({ error: 'An error occurred while fetching the schedule.' });
-  }
-});
+    const scheduleGroup = await ScheduleGroup.findById(groupId)
+      .populate('groupId')
+      .populate({
+        path: 'schedules.scheduleId',
+        populate: { path: 'templateId' },
+      });
 
-/**
- * @swagger
- * /api/schedule/{scheduleId}:
- *   delete:
- *     summary: Delete a Schedule by its ID
- *     parameters:
- *       - in: path
- *         name: scheduleId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Schedule deleted successfully.
- *       404:
- *         description: Schedule not found.
- *       500:
- *         description: An error occurred while deleting the Schedule.
- */
-app.delete('/api/schedule/:scheduleId', async (req, res) => {
-  const { scheduleId } = req.params;
-
-  try {
-    const deleteSchedule = await Schedule.findByIdAndDelete(scheduleId);
-
-    if (!deleteSchedule) {
-      return res.status(404).json({ error: 'Schedule not found.' });
+    if (!scheduleGroup) {
+      return res.status(404).json({ error: 'Schedule group not found.' });
     }
 
-    res.status(200).json({ message: 'Schedule deleted successfully.' });
+    res.status(200).json(scheduleGroup);
   } catch (error) {
-    console.error('Error deleting Schedule:', error);
-    res.status(500).json({ error: 'An error occurred while deleting the Schedule.' });
+    console.error('Error fetching schedule group:', error);
+    res.status(500).json({ error: 'An error occurred while fetching the schedule group.' });
   }
 });
 
 /**
  * @swagger
- * /api/schedule:
- *   get:
- *     summary: Get all scheduled messages
- *     responses:
- *       200:
- *         description: List of scheduled messages.
- */
-app.get('/api/schedule', async (req, res) => {
-  try {
-    const schedules = await Schedule.find().populate('groupId');
-    res.status(200).json(schedules);
-  } catch (error) {
-    console.error('Error fetching schedules:', error);
-    res.status(500).json({ error: 'An error occurred while fetching schedules.' });
-  }
-});
-
-/**
- * @swagger
- * /api/schedule/{scheduleId}:
+ * /api/schedule-groups/{groupId}:
  *   patch:
- *     summary: Update a scheduled message
+ *     summary: Update a schedule group
+ *     tags:
+ *       - Schedule Groups
  *     parameters:
  *       - in: path
- *         name: scheduleId
+ *         name: groupId
  *         required: true
  *         schema:
  *           type: string
@@ -730,56 +856,154 @@ app.get('/api/schedule', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               template:
+ *               scheduleName:
  *                 type: string
- *               scheduledTime:
+ *               groupId:
  *                 type: string
- *                 format: date-time
- *               status:
- *                  type: string
+ *               schedules:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     scheduleId:
+ *                       type: string
+ *                     templateId:
+ *                       type: string
+ *                     scheduledTime:
+ *                       type: string
+ *                       format: date-time
+ *                     status:
+ *                       type: string
  *     responses:
  *       200:
- *         description: Schedule updated successfully.
+ *         description: Schedule group updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ScheduleGroup'
+ *       404:
+ *         description: Schedule group not found.
+ *       400:
+ *         description: Bad request.
+ *       500:
+ *         description: Server error.
  */
-app.patch('/api/schedule/:scheduleId', async (req, res) => {
-  const { scheduleId } = req.params;
-  const { template, scheduledTime, status } = req.body;
+app.patch('/api/schedule-groups/:groupId', async (req, res) => {
+  const { groupId } = req.params;
+  const { scheduleName, groupId: newGroupId, schedules } = req.body;
 
   try {
     const updateData = {};
 
-    if (template) {
-      updateData.template = template;
+    if (scheduleName) {
+      // Check if the new scheduleName is unique
+      const existingGroup = await ScheduleGroup.findOne({ scheduleName, _id: { $ne: groupId } });
+      if (existingGroup) {
+        return res.status(400).json({ error: 'Schedule name already exists. Please choose a different name.' });
+      }
+      updateData.scheduleName = scheduleName;
     }
 
-    if (scheduledTime) {
-      updateData.scheduledTime = scheduledTime;
+    if (newGroupId) {
+      updateData.groupId = newGroupId;
     }
 
-    if (status) {
-      updateData.status = status;
+    const scheduleGroup = await ScheduleGroup.findById(groupId);
+    if (!scheduleGroup) {
+      return res.status(404).json({ error: 'Schedule group not found.' });
     }
 
-    const updatedSchedule = await Schedule.findByIdAndUpdate(scheduleId, updateData, { new: true });
-
-    if (!updatedSchedule) {
-      return res.status(404).json({ error: 'Schedule not found.' });
+    if (Array.isArray(schedules)) {
+      // Update existing schedules or add new ones
+      for (const sched of schedules) {
+        if (sched.scheduleId) {
+          // Update existing schedule
+          await Schedule.findByIdAndUpdate(
+            sched.scheduleId,
+            {
+              templateId: sched.templateId || undefined,
+              scheduledTime: sched.scheduledTime || undefined,
+              status: sched.status || undefined,
+            },
+            { new: true }
+          );
+        } else {
+          // Create a new schedule
+          const newSchedule = new Schedule({
+            templateId: sched.templateId,
+            scheduledTime: sched.scheduledTime,
+          });
+          await newSchedule.save();
+          scheduleGroup.schedules.push({ scheduleId: newSchedule._id, status: newSchedule.status });
+        }
+      }
     }
 
-    res.status(200).json({ message: 'Schedule updated successfully.', schedule: updatedSchedule });
+    // Update schedule group
+    await ScheduleGroup.findByIdAndUpdate(groupId, updateData, { new: true });
+
+    // Save the updated schedules array
+    await scheduleGroup.save();
+
+    const updatedGroup = await ScheduleGroup.findById(groupId)
+      .populate('groupId')
+      .populate({
+        path: 'schedules.scheduleId',
+        populate: { path: 'templateId' },
+      });
+
+    res.status(200).json({ message: 'Schedule group updated successfully.', scheduleGroup: updatedGroup });
   } catch (error) {
-    console.error('Error updating schedule:', error);
-    res.status(500).json({ error: 'An error occurred while updating the schedule.' });
+    console.error('Error updating schedule group:', error);
+    res.status(500).json({ error: 'An error occurred while updating the schedule group.' });
   }
 });
 
+/**
+ * @swagger
+ * /api/schedule-groups/{groupId}:
+ *   delete:
+ *     summary: Delete a schedule group by its ID
+ *     tags:
+ *       - Schedule Groups
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Schedule group and associated schedules deleted successfully.
+ *       404:
+ *         description: Schedule group not found.
+ *       500:
+ *         description: Server error.
+ */
+app.delete('/api/schedule-groups/:groupId', async (req, res) => {
+  const { groupId } = req.params;
 
+  try {
+    const scheduleGroup = await ScheduleGroup.findById(groupId);
+    if (!scheduleGroup) {
+      return res.status(404).json({ error: 'Schedule group not found.' });
+    }
 
-// Function to send WhatsApp message
+    // Delete all associated schedules
+    const scheduleIds = scheduleGroup.schedules.map((sched) => sched.scheduleId);
+    await Schedule.deleteMany({ _id: { $in: scheduleIds } });
 
- // Import the template model or path as per your project structure
+    // Delete the schedule group
+    await ScheduleGroup.findByIdAndDelete(groupId);
 
-// Function to send WhatsApp message to a group
+    res.status(200).json({ message: 'Schedule group and associated schedules deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting schedule group:', error);
+    res.status(500).json({ error: 'An error occurred while deleting the schedule group.' });
+  }
+});
+
+// Function to send WhatsApp messages to a group
 const sendMessageToGroup = async (group, templateId) => {
   console.log(`Fetching template with ID: ${templateId}`);
 
@@ -796,11 +1020,29 @@ const sendMessageToGroup = async (group, templateId) => {
 
   // Function to dynamically replace template parameters
   const replaceTemplateParams = (templateParams, user) => {
-    return templateParams.map(param => {
-      if (param === '$UserName') return user.name || 'User'; // Replace with user name or default to 'User'
-      if (param === '$FirstName') return user.name || 'User'; // Assuming FirstName is also the user's name
-      if (param === '$Discount') return '90'; // Hardcoded discount, you may want to fetch this dynamically
-      return param; // Return param as is if no match is found
+    // Build a mapping of placeholders to their corresponding values
+    const placeholderValues = {
+      '$UserName': user.name || 'User',
+      '$FirstName': 'Hailgro',
+      '$RaName': user.raName || '',
+      // Add additional placeholders and their values here
+    };
+
+    return templateParams.map((param) => {
+      // Replace placeholders in the param string
+      let replacedParam = param.replace(/\$[A-Za-z0-9_]+/g, (match) => {
+        if (placeholderValues.hasOwnProperty(match)) {
+          return placeholderValues[match];
+        }
+        return match;
+      });
+
+      // Remove any parameter labels like 'Param1:' or 'Param2:'
+      // Assuming labels are prefixed like 'Param1:' in the string
+      // Adjust the regex if labels are formatted differently
+      replacedParam = replacedParam.replace(/Param\d+:\s*/g, '');
+
+      return replacedParam;
     });
   };
 
@@ -808,7 +1050,7 @@ const sendMessageToGroup = async (group, templateId) => {
   for (let i = 0; i < group.users.length; i += batchSize) {
     const batchUsers = group.users.slice(i, i + batchSize); // Get batch of users
 
-    const messages = batchUsers.map(user => {
+    const messages = batchUsers.map((user) => {
       // Replace dynamic params for each user
       const templateParamsReplaced = replaceTemplateParams(template.templateParams, user);
 
@@ -817,19 +1059,18 @@ const sendMessageToGroup = async (group, templateId) => {
         campaignName: template.campaignName, // Use the correct campaign name
         destination: user.mobileNumber,
         userName: template.userName,
-        templateParams: templateParamsReplaced, // Replaced dynamic params
-        source: template.source || "new-landing-page form",
+        // Send templateParams as an array of values without labels
+        templateParams: templateParamsReplaced,
+        source: template.source || 'new-landing-page form',
         media: {
-          url: template.mediaUrl || "", // Ensure a valid media URL is provided if required
-          filename: template.mediaFilename || "", // Ensure a valid filename is provided
+          url: template.mediaUrl || '', // Ensure a valid media URL is provided if required
+          filename: template.mediaFilename || '', // Ensure a valid filename is provided
         },
         paramsFallbackValue: {
-          FirstName: "Hailgro"|| "user",
-          RAname: user.raName || "",
-           // Dynamically use the user's name
-          Discount: 0, // Set discount dynamically or use fallback
-          UserName: user.name || "User" // User's name fallback
-        }
+          RAname: user.raName || '',
+          UserName: user.name || 'User', // User's name fallback
+          // Include other fallback values if necessary
+        },
       };
     });
 
@@ -838,17 +1079,17 @@ const sendMessageToGroup = async (group, templateId) => {
     try {
       // Send the messages batch via Axios
       const responses = await Promise.all(
-        messages.map(message =>
+        messages.map((message) =>
           axios.post(apiUrl, message, {
             headers: {
               'Content-Type': 'application/json',
-            }
+            },
           })
         )
       );
 
       // Log the result of each message batch
-      responses.forEach(response => console.log(`Batch send result:`, response.data));
+      responses.forEach((response) => console.log(`Batch send result:`, response.data));
     } catch (error) {
       // Improved error logging
       if (error.response) {
@@ -863,34 +1104,64 @@ const sendMessageToGroup = async (group, templateId) => {
 };
 
 
-module.exports = sendMessageToGroup;
-
 
 // Cron job to check for scheduled messages and send them
-cron.schedule('* * * * *', async () => { // This runs every minute
+cron.schedule('* * * * *', async () => {
+  // This runs every minute
   console.log(`Cron job triggered at ${new Date().toISOString()}`);
   try {
-    const dueSchedules = await Schedule.find({ scheduledTime: { $lte: new Date() }, status: 'pending' });
-    console.log(`Current system time: ${new Date().toISOString()}`);
-    const earliestSchedule = await Schedule.find().sort({scheduledTime: 1}).limit(1);
-    if (earliestSchedule.length) {
-        console.log(`Earliest scheduled time in DB: ${earliestSchedule[0].scheduledTime.toISOString()}`);
-    } else {
-        console.log("No schedules in DB.");
-    }
+    // Find schedule groups with at least one schedule due
+    const dueScheduleGroups = await ScheduleGroup.find({
+      status: 'pending',
+    })
+      .populate('groupId')
+      .populate({
+        path: 'schedules.scheduleId',
+        populate: { path: 'templateId' },
+      });
 
-    console.log(`Found ${dueSchedules.length} due schedules to process.`);
-    for (const schedule of dueSchedules) {
-      console.log(`Processing schedule ID: ${schedule._id} for group ID: ${schedule.groupId}`);
-      const group = await Group.findById(schedule.groupId);
-      if (group) {
-        console.log(`Group found: ${group.name}. Sending messages.`);
-        await sendMessageToGroup(group, schedule.templateId);
-        schedule.status = 'sent';
-        await schedule.save();
-        console.log(`Schedule ID: ${schedule._id} status updated to 'sent'.`);
+    for (const group of dueScheduleGroups) {
+      console.log(`Processing Schedule Group: ${group.scheduleName}`);
+
+      // Filter schedules that are due
+      const dueSchedules = group.schedules.filter((sched) => {
+        return sched.scheduleId.scheduledTime <= new Date() && sched.status === 'pending';
+      });
+
+      if (dueSchedules.length === 0) {
+        console.log(`No due schedules in group: ${group.scheduleName}`);
+        continue;
+      }
+
+      for (const sched of dueSchedules) {
+        console.log(`Processing Schedule ID: ${sched.scheduleId._id}`);
+
+        const groupData = group.groupId; // Populated Group
+
+        if (!groupData) {
+          console.log(`Group data not found for Schedule ID: ${sched.scheduleId._id}`);
+          continue;
+        }
+
+        // Send messages using the sendMessageToGroup function
+        await sendMessageToGroup(groupData, sched.scheduleId.templateId._id);
+
+        // Update schedule status to 'sent'
+        sched.status = 'sent';
+        sched.scheduleId.status = 'sent';
+        await sched.scheduleId.save();
+      }
+
+      // Check if all schedules in the group are sent
+      const allSent = group.schedules.every((sched) => sched.status === 'sent');
+
+      if (allSent) {
+        group.status = 'sent';
+        await group.save();
+        console.log(`All schedules in group ${group.scheduleName} are sent. Group status updated.`);
       } else {
-        console.log(`No group found for group ID: ${schedule.groupId}`);
+        // Save the group to update the statuses of individual schedules
+        await group.save();
       }
     }
   } catch (error) {
