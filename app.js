@@ -12,7 +12,7 @@ const cron = require('node-cron');
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({limit:'50mb'}));
 app.use(
   cors({
     origin: ['http://localhost:3000', 'https://whatsapp.copartner.in'],
@@ -790,92 +790,7 @@ app.get('/api/schedule-groups', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/groups/{groupId}/add-users:
- *   patch:
- *     summary: Add users to an existing group without replacing old users
- *     tags:
- *       - Groups
- *     parameters:
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the group to update
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - users
- *             properties:
- *               users:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required:
- *                     - userId
- *                     - mobileNumber
- *                   properties:
- *                     userId:
- *                       type: string
- *                     raName:
- *                       type: string
- *                     name:
- *                       type: string
- *                     mobileNumber:
- *                       type: string
- *     responses:
- *       200:
- *         description: Users added to the group successfully.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Group'
- *       400:
- *         description: Bad request.
- *       404:
- *         description: Group not found.
- *       500:
- *         description: An error occurred while updating the group.
- */
-app.patch('/api/groups/:groupId/add-users', async (req, res) => {
-  const { groupId } = req.params;
-  const { users } = req.body;
 
-  if (!Array.isArray(users) || users.length === 0) {
-    return res.status(400).json({ error: 'A list of users is required.' });
-  }
-
-  try {
-    const group = await Group.findById(groupId);
-
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found.' });
-    }
-
-    // Create a set of existing userIds for quick lookup
-    const existingUserIds = new Set(group.users.map((user) => user.userId));
-
-    // Filter out users that already exist in the group
-    const newUsers = users.filter((newUser) => !existingUserIds.has(newUser.userId));
-
-    // Add new users to the group
-    group.users.push(...newUsers);
-
-    // Save the updated group
-    await group.save();
-
-    res.status(200).json({ message: 'Users added to the group successfully.', group });
-  } catch (error) {
-    console.error('Error adding users to group:', error);
-    res.status(500).json({ error: 'An error occurred while adding users to the group.' });
-  }
-});
 
 /**
  * @swagger
