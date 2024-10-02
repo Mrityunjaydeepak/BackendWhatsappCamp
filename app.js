@@ -15,7 +15,7 @@ const app = express();
 app.use(express.json({limit:'50mb'}));
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'https://whatsapp.copartner.in'],
+    origin: ['http://localhost:3000', 'https://whatsapp.copartner.in','https://admin.copartner.in'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
